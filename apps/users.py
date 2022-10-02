@@ -16,6 +16,9 @@ You'll get the user_id and email of the person who made the API call from the JW
 
 GET /user -> Return the information about the requesting user.
 
+GET /user/verify?email={email@test.com} -> Return whether an account exists with the given email address.
+Return the full user object if yes, otherwise give a 404 response error
+
 POST /user -> Create the user
 PUT /user -> Update the user
 """
