@@ -9,7 +9,7 @@ Team:
     name: 'Team Name',
     users: [],
     documents: [],
-    edges: [],
+    edges: [] - should be a collection,
     created_at: TIMESTAMP,
     last_updated: TIMESTAMP
 }
@@ -49,3 +49,13 @@ owner
 admin
 member
 """
+from fastapi import FastAPI, Depends, HTTPException
+from pydantic import BaseModel
+from apps.jwt import get_current_user_data
+from apps.firebase import db_app, db
+
+team_api = FastAPI()
+
+@team_api.get("/")
+def get_teams(current_user: dict = Depends(get_current_user_data)):
+        return "hi"
