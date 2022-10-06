@@ -50,24 +50,24 @@ class User(BaseModel):
 # Get current user
 @user_api.get("/")
 def get_user(current_user: dict = Depends(get_current_user_data)):
-        id = current_user.get("id")
-        user_doc = db.collection(u'users').document(id).get()
-        return user_doc.to_dict()
+    id = current_user.get("id")
+    user_doc = db.collection(u'users').document(id).get()
+    return user_doc.to_dict()
 
 # Get user
 @user_api.get("/verify")
 def get_user(email):
-        user_ref = db.collection(u'users')
-        query_ref = user_ref.where(u'email', u'==', email)
-        docs = query_ref.get()
+    user_ref = db.collection(u'users')
+    query_ref = user_ref.where(u'email', u'==', email)
+    docs = query_ref.get()
 
-        if len(docs) < 1:
-            raise HTTPException(status_code=404, detail=f"{email} not found")
+    if len(docs) < 1:
+        raise HTTPException(status_code=404, detail=f"{email} not found")
 
-        user_doc = docs[0]
-        user_data = user_doc.to_dict()
-        user_data["id"] = user_doc.id
-        return(user_data)
+    user_doc = docs[0]
+    user_data = user_doc.to_dict()
+    user_data["id"] = user_doc.id
+    return(user_data)
 
 
 # Create user
