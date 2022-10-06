@@ -36,7 +36,7 @@ PUT /user -> Update the user. You'll get the same body as the POST request
 from fastapi import FastAPI, Depends, HTTPException
 from pydantic import BaseModel
 from apps.jwt import get_current_user_data
-from apps.firebase import db_app, db
+from apps.firebase import db
 
 user_api = FastAPI()
 
