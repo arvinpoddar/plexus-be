@@ -55,7 +55,7 @@ def create_access_token(*, data: dict, expires_delta: timedelta = None):
 def create_token(user_data):
     access_token_expires = timedelta(minutes=API_ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        data={'email': user_data["email"], 'id': user_data["sub"]},
+        data={'email': user_data["email"], 'id': 'pid' + user_data["sub"]},
         expires_delta=access_token_expires
     )
     return access_token

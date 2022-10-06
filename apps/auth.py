@@ -45,5 +45,5 @@ async def auth(code_body: GoogleAuthCode):
         **credentials.id_token,
         'access_token': create_token(user_data),
         'email': user_data['email'],
-        'id': user_data['sub'],
+        'id': 'pid' + user_data['sub'],
     })

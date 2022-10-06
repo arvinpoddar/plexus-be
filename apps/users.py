@@ -40,12 +40,6 @@ from apps.firebase import db
 
 user_api = FastAPI()
 
-class User(BaseModel):
-    email: str
-    first_name: str
-    last_name: str
-    bio: str
-    id: str
 
 # Get current user
 @user_api.get("/")
@@ -56,53 +50,67 @@ def get_user(current_user: dict = Depends(get_current_user_data)):
 
 # Get user
 @user_api.get("/verify")
-def get_user(email):
+def get_user(email: str = '', token: dict = Depends(get_current_user_data)):
+    if not email:
+        return {}
+
     user_ref = db.collection(u'users')
     query_ref = user_ref.where(u'email', u'==', email)
     docs = query_ref.get()
 
-    if len(docs) < 1:
-        raise HTTPException(status_code=404, detail=f"{email} not found")
+    if len(docs) >= 1:
+        user_doc = docs[0]
+        user_data = user_doc.to_dict()
+        user_data["id"] = user_doc.id
+        return user_data
+    return {}
 
-    user_doc = docs[0]
-    user_data = user_doc.to_dict()
-    user_data["id"] = user_doc.id
-    return(user_data)
 
+class User(BaseModel):
+    email: str
+    first_name: str
+    last_name: str
+    bio: str
+    id: str
 
 # Create user
-@user_api.post("/")
-def create_user(user_data: User):
+
+@user_api.post("/",)
+def create_user(user_data: User, token: dict = Depends(get_current_user_data)):
     user_ref = db.collection(u'users')
     user_docs = user_ref.where(u'email', u'==', user_data.email).get()
 
     if len(user_docs) > 0:
-        raise HTTPException(status_code=404, detail=f"{user_data.email} already exists")
+        raise HTTPException(status_code=409, detail=f"{user_data.email} already exists")
 
-    new_user = user_ref.document()
+    uid = token.get('id')
+    new_user = user_ref.document(uid)
     new_user.set({
         u'first_name': user_data.first_name,
         u'last_name': user_data.last_name,
         u'email': user_data.email,
         u'bio': user_data.bio,
-        u'id': new_user.id,
+        u'id': uid,
     })
-    user_data.id = new_user.id
+    user_data.id = uid
     return user_data
 
 # Update user
+
+
 @user_api.put("/")
 def update_user(user_data: User):
     user_ref = db.collection(u'users').document(user_data.id)
 
     if not user_ref.get().exists:
-        raise HTTPException(status_code=404, detail=f"{user_data.email} doesn't exist")
-    
+        raise HTTPException(
+            status_code=404, detail=f"{user_data.email} doesn't exist")
+
     user_ref.update({
         u'first_name': user_data.first_name,
         u'last_name': user_data.last_name,
         u'email': user_data.email,
-        u'bio': user_data.bio, 
-    }) 
+        u'bio': user_data.bio,
+    })
 
     return user_data

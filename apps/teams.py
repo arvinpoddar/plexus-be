@@ -52,8 +52,8 @@ member
 from fastapi import FastAPI, Depends, HTTPException
 from pydantic import BaseModel
 from apps.jwt import get_current_user_data
-from apps.firebase import db_app, db
-from apps.users import User, create_user, get_user
+from apps.firebase import db
+from apps.users import User, create_user
 
 team_api = FastAPI()
 
@@ -65,9 +65,11 @@ class Team(BaseModel):
 # Get all teams of user
 @team_api.get("/")
 def get_teams(current_user: dict = Depends(get_current_user_data)):
-    id = current_user.get('id')
+    id = str(current_user.get('id'))
     # id = "lcxzDloR0DehARLVNyu1"
-    teams = db.collection(u'teams').order_by("users." + id).get()
+    temp = "users.a" + id
+    teams = db.collection(u'teams').order_by(temp).get()
+    print(teams)
     team_list = []
     for team in teams:
         team_list.append({"id": team.id, "name": team.get("name")})
