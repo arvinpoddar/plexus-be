@@ -54,8 +54,9 @@ from fastapi import FastAPI, Depends, HTTPException
 from pydantic import BaseModel
 from apps.jwt import get_current_user_data
 from apps.firebase import db
-team_api = FastAPI()
+from vars.roles import Roles
 
+team_api = FastAPI()
 
 # Get all teams of user
 @team_api.get("/")
@@ -70,7 +71,9 @@ def get_teams(current_user: dict = Depends(get_current_user_data)):
 @team_api.get("/{team_id}")
 def get_team(team_id, current_user: dict = Depends(get_current_user_data)):
     team_doc = db.collection(u'teams').document(team_id)
-    team_data = team_doc.get().to_dict()
+    team = team_doc.get()
+    verify_user(team, current_user["id"], Roles.MEMBER)
+    team_data = team.to_dict()
     users_dict = team_data.pop('users', None)
     if users_dict == None:
         return team_data
@@ -92,10 +95,12 @@ def get_team(team_id, current_user: dict = Depends(get_current_user_data)):
 def delete_team(team_id, current_user: dict = Depends(get_current_user_data)):
     team_doc = db.collection(u'teams').document(team_id)
     team = team_doc.get()
-    if team.exists:
-        team_doc.delete()
-    else:
+    
+    verify_user(team, current_user["id"], Roles.ADMIN)
+    if not team.exists:
         raise HTTPException(status_code=404, detail=f"{team_id} doesn't exist")
+
+    team_doc.delete()
     name = team.to_dict().get("name")
 
     return f"{name} deleted"
@@ -113,7 +118,7 @@ class CreateTeamRequest(BaseModel):
 def create_team(team_data: CreateTeamRequest, current_user: dict = Depends(get_current_user_data)):
     teams_ref = db.collection(u'teams')
     user_dict = {}
-    user_dict[current_user['id']] = {"role": "owner"}
+    user_dict[current_user['id']] = {"role": Roles.ADMIN.name}
 
     new_team = teams_ref.document()
     new_team.set({
@@ -130,12 +135,15 @@ def create_team(team_data: CreateTeamRequest, current_user: dict = Depends(get_c
 
 
 @team_api.put("/{team_id}")
-def create_team(team_id, team_data: CreateTeamRequest, current_user: dict = Depends(get_current_user_data)):
+def update_team(team_id, team_data: CreateTeamRequest, current_user: dict = Depends(get_current_user_data)):
     teams_ref = db.collection(u'teams')
     team_doc = teams_ref.document(team_id)
+    
+    verify_user(team_doc.get(), current_user["id"], Roles.ADMIN)
     if not team_doc.get().exists:
         raise HTTPException(
             status_code=404, detail=f"Team {team_id} doesn't exist")
+
     team_doc.update({
         u'name': team_data.name,
         u'description': team_data.description,
@@ -146,31 +154,29 @@ def create_team(team_id, team_data: CreateTeamRequest, current_user: dict = Depe
 
 def insert_or_update_team_user(team_id, requesting_id, request):
     team_doc = db.collection(u'teams').document(team_id)
-    team_data = team_doc.get().to_dict()
+    team = team_doc.get()
+
+    verify_user(team, requesting_id, Roles.ADMIN)
+
+    team_data = team.to_dict()
     team_users = team_data.pop('users', {})
 
     if requesting_id == request.id:
         raise HTTPException(
             status_code=403, detail=f"{requesting_id} cannot edit itself")
-    elif requesting_id not in team_users:
-        raise HTTPException(
-            status_code=403, detail=f"{requesting_id} doesn't have permission for this team")
-    elif team_users.get(requesting_id).get("role") not in ["admin", "owner"]:
-        raise HTTPException(
-            status_code=403, detail=f"{requesting_id} doesn't have permission for this team")
 
-    inserting_user_doc = db.collection(u'users').document(request.id).get()
-    if not inserting_user_doc.exists:
+    inserting_user = db.collection(u'users').document(request.id).get()
+    if not inserting_user.exists:
         raise HTTPException(
             status_code=404, detail=f"User {request.id} doesn't exist")
 
-    team_users[request.id] = {"role": request.role}
+    team_users[request.id] = {"role": request.role.lower()}
 
     team_doc.update({
         u'users': team_users,
     })
-    inserting_user_doc = db.collection(u'users').document(request.id).get()
-    return inserting_user_doc.to_dict()
+    inserting_user = db.collection(u'users').document(request.id).get()
+    return inserting_user.to_dict()
 
 
 class InsertUserRequest(BaseModel):
@@ -181,8 +187,13 @@ class InsertUserRequest(BaseModel):
 @team_api.get("/{team_id}/users")
 def get_team(team_id, current_user: dict = Depends(get_current_user_data)):
     team_doc = db.collection(u'teams').document(team_id)
-    team_data = team_doc.get().to_dict()
+    team = team_doc.get()
+
+    verify_user(team, current_user["id"], Roles.MEMBER)
+
+    team_data = team.to_dict()
     users_dict = team_data.pop('users', None)
+
     if users_dict == None:
         return []
 
@@ -209,22 +220,20 @@ def put_team_user(team_id, request: InsertUserRequest, current_user: dict = Depe
 @team_api.delete("/{team_id}/users/{user_id}")
 def delete_team_user(team_id, user_id, current_user: dict = Depends(get_current_user_data)):
     team_doc = db.collection(u'teams').document(team_id)
-    team_data = team_doc.get().to_dict()
+    team = team_doc.get()
+
+    verify_user(team, current_user["id"], Roles.ADMIN)
+
+    team_data = team.to_dict()
     team_users = team_data.pop('users', {})
-    print("here")
+
     requesting_id = current_user["id"]
     if requesting_id == user_id:
         raise HTTPException(
             status_code=403, detail=f"{requesting_id} cannot edit itself")
-    elif requesting_id not in team_users:
-        raise HTTPException(
-            status_code=403, detail=f"{requesting_id} doesn't have permission for this team")
-    elif team_users.get(requesting_id).get("role") not in ["admin", "owner"]:
-        raise HTTPException(
-            status_code=403, detail=f"{requesting_id} doesn't have permission for this team")
 
-    deleted_user_doc = db.collection(u'users').document(user_id).get()
-    if not deleted_user_doc.exists:
+    deleted_user = db.collection(u'users').document(user_id).get()
+    if not deleted_user.exists:
         raise HTTPException(
             status_code=404, detail=f"User {user_id} doesn't exist")
 
@@ -233,4 +242,17 @@ def delete_team_user(team_id, user_id, current_user: dict = Depends(get_current_
         u'users': team_users,
     })
 
-    return deleted_user_doc.to_dict()
+    return deleted_user.to_dict()
+
+
+def verify_user(team, uid, req_role):
+    if not team.exists:
+        raise HTTPException(
+            status_code=404, detail=f"Team doesn't exist")
+    users = team.to_dict()['users']
+    user = users.get(uid, None)
+    user_role = user['role']
+
+    if not user_role or Roles[user_role.upper()].value < req_role.value:
+        raise HTTPException(
+            status_code=403, detail=f"{uid} has no permission for this team")
