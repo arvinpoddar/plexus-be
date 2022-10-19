@@ -1,5 +1,4 @@
-from enum import Enum
-from enum import auto
+from enum import Enum, auto
 
 class Roles(Enum):
     MEMBER = auto()

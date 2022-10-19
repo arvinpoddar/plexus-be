@@ -55,6 +55,7 @@ from pydantic import BaseModel
 from apps.jwt import get_current_user_data
 from apps.firebase import db
 from vars.roles import Roles
+from vars.status import Status
 
 team_api = FastAPI()
 
@@ -72,7 +73,9 @@ def get_teams(current_user: dict = Depends(get_current_user_data)):
 def get_team(team_id, current_user: dict = Depends(get_current_user_data)):
     team_doc = db.collection(u'teams').document(team_id)
     team = team_doc.get()
+
     verify_user(team, current_user["id"], Roles.MEMBER)
+
     team_data = team.to_dict()
     users_dict = team_data.pop('users', None)
     if users_dict == None:
@@ -95,10 +98,8 @@ def get_team(team_id, current_user: dict = Depends(get_current_user_data)):
 def delete_team(team_id, current_user: dict = Depends(get_current_user_data)):
     team_doc = db.collection(u'teams').document(team_id)
     team = team_doc.get()
-    
+
     verify_user(team, current_user["id"], Roles.ADMIN)
-    if not team.exists:
-        raise HTTPException(status_code=404, detail=f"{team_id} doesn't exist")
 
     team_doc.delete()
     name = team.to_dict().get("name")
@@ -138,7 +139,7 @@ def create_team(team_data: CreateTeamRequest, current_user: dict = Depends(get_c
 def update_team(team_id, team_data: CreateTeamRequest, current_user: dict = Depends(get_current_user_data)):
     teams_ref = db.collection(u'teams')
     team_doc = teams_ref.document(team_id)
-    
+
     verify_user(team_doc.get(), current_user["id"], Roles.ADMIN)
     if not team_doc.get().exists:
         raise HTTPException(
@@ -221,7 +222,6 @@ def put_team_user(team_id, request: InsertUserRequest, current_user: dict = Depe
 def delete_team_user(team_id, user_id, current_user: dict = Depends(get_current_user_data)):
     team_doc = db.collection(u'teams').document(team_id)
     team = team_doc.get()
-
     verify_user(team, current_user["id"], Roles.ADMIN)
 
     team_data = team.to_dict()
@@ -256,3 +256,104 @@ def verify_user(team, uid, req_role):
     if not user_role or Roles[user_role.upper()].value < req_role.value:
         raise HTTPException(
             status_code=403, detail=f"{uid} has no permission for this team")
+
+
+
+'''
+Document Endpoints
+'''
+
+@team_api.get("/{team_id}/documents")
+def get_all_documents(team_id, current_user: dict = Depends(get_current_user_data)):
+    team_doc = db.collection(u'teams').document(team_id)
+    team = team_doc.get()
+    verify_user(team, current_user["id"], Roles.MEMBER)
+
+
+    document_col = db.collection('teams').document(team_id).collection('documents')
+    doc_array = [doc.to_dict() for doc in document_col.get()]
+    for doc in doc_array:
+        if len(doc['content']) > 150:
+            doc['content'] = doc['content'][:150]
+    return doc_array
+
+@team_api.get("/{team_id}/documents/{doc_id}")
+def get_document(team_id, doc_id, current_user: dict = Depends(get_current_user_data)):
+    team_doc = db.collection(u'teams').document(team_id)
+    team = team_doc.get()
+    verify_user(team, current_user["id"], Roles.MEMBER)
+
+
+    document = db.collection('teams').document(team_id).collection('documents').document(doc_id).get()
+    
+    if not document.exists:
+        raise HTTPException(
+            status_code=404, detail=f"Document {doc_id} doesn't exist")
+    
+    return document.to_dict()
+
+class Document(BaseModel):
+    name: str
+    status: str
+    content: str
+    id : str
+
+@team_api.post("/{team_id}/documents")
+def create_document(team_id, doc: Document, current_user: dict = Depends(get_current_user_data)):
+    team_doc = db.collection(u'teams').document(team_id)
+    team = team_doc.get()
+    verify_user(team, current_user["id"], Roles.MEMBER)
+
+
+    docs_ref = db.collection('teams').document(team_id).collection('documents')
+    new_doc = docs_ref.document()
+    new_doc.set({
+        u'author': current_user["id"],
+        u'content': doc.content,
+        u'status': doc.status,
+        u'name': doc.name,
+        u'id': new_doc.id,
+    })
+    doc.id = new_doc.id
+    return doc
+
+@team_api.put("/{team_id}/documents/{doc_id}")
+def update_document(team_id, doc: Document, doc_id, current_user: dict = Depends(get_current_user_data)):
+    team_doc = db.collection(u'teams').document(team_id)
+    team = team_doc.get()
+    verify_user(team, current_user["id"], Roles.ADMIN)
+
+    doc_ref = db.collection('teams').document(team_id).collection('documents').document(doc_id)
+    if current_user["id"] != doc_ref.get().to_dict()['author']:
+        raise HTTPException(
+            status_code=403, detail=f"{current_user['id']} has no permission for this document")
+
+    doc_ref.update({
+        u'content': doc.content,
+        u'status': doc.status,
+        u'name': doc.name,
+    })
+
+    return doc
+
+@team_api.delete("/{team_id}/documents/{doc_id}")
+def delete_docment(team_id, doc_id, current_user: dict = Depends(get_current_user_data)):
+    team_doc = db.collection(u'teams').document(team_id)
+    team = team_doc.get()
+    doc_ref = db.collection('teams').document(team_id).collection('documents').document(doc_id)
+    doc = doc_ref.get()
+
+    verify_user(team, current_user['id'], Roles.MEMBER)
+    if not doc.exists:
+        raise HTTPException(
+            status_code=404, detail=f"{doc_id} doesn't exist"
+        )
+    doc_dict = doc.to_dict()
+
+    if current_user["id"] != doc_dict['author']:
+        verify_user(team, current_user['id'], Roles.ADMIN)
+
+    doc_ref.delete()
+
+    return f"{doc_dict['name']} deleted"
+
