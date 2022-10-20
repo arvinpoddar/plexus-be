@@ -119,7 +119,7 @@ class CreateTeamRequest(BaseModel):
 def create_team(team_data: CreateTeamRequest, current_user: dict = Depends(get_current_user_data)):
     teams_ref = db.collection(u'teams')
     user_dict = {}
-    user_dict[current_user['id']] = {"role": Roles.ADMIN.name}
+    user_dict[current_user['id']] = {"role": Roles.OWNER.name.lower()}
 
     new_team = teams_ref.document()
     new_team.set({
@@ -127,8 +127,6 @@ def create_team(team_data: CreateTeamRequest, current_user: dict = Depends(get_c
         u'name': team_data.name,
         u'description': team_data.description,
         u'users': user_dict,
-        u'documents': {},
-        u'edges': {},
     })
     team_data.id = new_team.id
 
@@ -390,12 +388,18 @@ def create_edge(team_id, edge: Edge, current_user: dict = Depends(get_current_us
 
     docs_ref = db.collection('teams').document(team_id).collection('edges')
     new_id = edge.frm + edge.to if edge.frm.lower() < edge.to.lower() else edge.to + edge.frm
-    for doc in docs_ref.stream():
-        if new_id == doc.to_dict()["id"]:
-            print("NOOOOOOOOO")
-            raise HTTPException(
-                status_code=404, detail="Already Exists"
-            )
+    
+    doc_ids = [doc.id for doc in db.collection('teams').document(team_id).collection('documents').select('').get()]
+    if not (edge.frm in doc_ids and edge.to in doc_ids):
+        raise HTTPException(
+            status_code=404, detail="Documents don't exist"
+        ) 
+
+    if new_id in [doc.id for doc in docs_ref.select('').get()]:
+        raise HTTPException(
+            status_code=404, detail="Edge already exists"
+        )
+
     new_doc = docs_ref.document(new_id)
     new_doc.set({
         u'description': edge.description,
@@ -421,7 +425,7 @@ def update_edge(team_id, edge: Edge, edge_id, current_user: dict = Depends(get_c
     return edge
 
 @team_api.delete("/{team_id}/edges/{edge_id}")
-def delete_document(team_id, edge_id, current_user: dict = Depends(get_current_user_data)):
+def delete_edge(team_id, edge_id, current_user: dict = Depends(get_current_user_data)):
     team_doc = db.collection(u'teams').document(team_id)
     team = team_doc.get()
     edge_ref = db.collection('teams').document(team_id).collection('edges').document(edge_id)
