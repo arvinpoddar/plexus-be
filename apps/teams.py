@@ -259,9 +259,10 @@ def verify_user(team, uid, req_role):
 
 
 
-'''
+"""
 Document Endpoints
-'''
+
+"""
 
 @team_api.get("/{team_id}/documents")
 def get_all_documents(team_id, current_user: dict = Depends(get_current_user_data)):
@@ -337,7 +338,7 @@ def update_document(team_id, doc: Document, doc_id, current_user: dict = Depends
     return doc
 
 @team_api.delete("/{team_id}/documents/{doc_id}")
-def delete_docment(team_id, doc_id, current_user: dict = Depends(get_current_user_data)):
+def delete_document(team_id, doc_id, current_user: dict = Depends(get_current_user_data)):
     team_doc = db.collection(u'teams').document(team_id)
     team = team_doc.get()
     doc_ref = db.collection('teams').document(team_id).collection('documents').document(doc_id)
@@ -357,3 +358,82 @@ def delete_docment(team_id, doc_id, current_user: dict = Depends(get_current_use
 
     return f"{doc_dict['name']} deleted"
 
+"""
+Edge Endpoints
+
+"""
+
+@team_api.get("/{team_id}/edges")
+def get_edges(team_id, current_user: dict = Depends(get_current_user_data)):
+    team_doc = db.collection(u'teams').document(team_id)
+    team = team_doc.get()
+    verify_user(team, current_user["id"], Roles.MEMBER)
+
+
+    edge_col = db.collection('teams').document(team_id).collection('edges')
+    doc_array = [edge.to_dict() for edge in edge_col.get()]
+
+    return doc_array
+
+class Edge(BaseModel):
+    description: str
+    frm: str
+    to: str
+    id: str
+
+@team_api.post("/{team_id}/edges")
+def create_edge(team_id, edge: Edge, current_user: dict = Depends(get_current_user_data)):
+    team_doc = db.collection(u'teams').document(team_id)
+    team = team_doc.get()
+    verify_user(team, current_user["id"], Roles.MEMBER)
+
+
+    docs_ref = db.collection('teams').document(team_id).collection('edges')
+    new_id = edge.frm + edge.to if edge.frm.lower() < edge.to.lower() else edge.to + edge.frm
+    for doc in docs_ref.stream():
+        if new_id == doc.to_dict()["id"]:
+            print("NOOOOOOOOO")
+            raise HTTPException(
+                status_code=404, detail="Already Exists"
+            )
+    new_doc = docs_ref.document(new_id)
+    new_doc.set({
+        u'description': edge.description,
+        u'from': edge.frm,
+        u'to': edge.to,
+        u'id': new_id,
+    })
+    edge.id = new_id
+    return edge
+
+@team_api.put("/{team_id}/edges/{edge_id}")
+def update_edge(team_id, edge: Edge, edge_id, current_user: dict = Depends(get_current_user_data)):
+    team_doc = db.collection(u'teams').document(team_id)
+    team = team_doc.get()
+    verify_user(team, current_user["id"], Roles.ADMIN)
+
+    doc_ref = db.collection('teams').document(team_id).collection('edges').document(edge_id)
+
+    doc_ref.update({
+        u'description': edge.description,
+    })
+
+    return edge
+
+@team_api.delete("/{team_id}/edges/{edge_id}")
+def delete_document(team_id, edge_id, current_user: dict = Depends(get_current_user_data)):
+    team_doc = db.collection(u'teams').document(team_id)
+    team = team_doc.get()
+    edge_ref = db.collection('teams').document(team_id).collection('edges').document(edge_id)
+    edge = edge_ref.get()
+
+    verify_user(team, current_user['id'], Roles.MEMBER)
+    if not edge.exists:
+        raise HTTPException(
+            status_code=404, detail=f"{edge_id} doesn't exist"
+        )
+    edge_dict = edge.to_dict()
+
+    edge_ref.delete()
+
+    return f"{edge_dict['id']} deleted"
