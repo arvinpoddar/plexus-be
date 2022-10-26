@@ -37,6 +37,7 @@ def get_document(team_id, doc_id, current_user: dict = Depends(get_current_user_
     return document.to_dict()
 
 class DocumentRequest(BaseModel):
+    id: str
     name: str
     status: str
     content: str
