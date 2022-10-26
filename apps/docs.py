@@ -17,8 +17,8 @@ def get_all_documents(team_id, current_user: dict = Depends(get_current_user_dat
     document_col = db.collection('teams').document(team_id).collection('documents')
     doc_array = [doc.to_dict() for doc in document_col.get()]
     for doc in doc_array:
-        if len(doc['content']) > 150:
-            doc['content'] = doc['content'][:150]
+        if len(doc['content']) > 100:
+            doc['content'] = doc['content'][:100] + '...'
     return doc_array
 
 @document_router.get("/{doc_id}")
