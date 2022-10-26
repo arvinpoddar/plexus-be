@@ -65,7 +65,7 @@ def create_document(team_id, doc: DocumentRequest, current_user: dict = Depends(
 def update_document(team_id, doc: DocumentRequest, doc_id, current_user: dict = Depends(get_current_user_data)):
     team_doc = db.collection(u'teams').document(team_id)
     team = team_doc.get()
-    verify_user(team, current_user["id"], Roles.ADMIN)
+    verify_user(team, current_user["id"], Roles.MEMBER)
 
     doc_ref = db.collection('teams').document(team_id).collection('documents').document(doc_id)
     if current_user["id"] != doc_ref.get().to_dict()['author']:
