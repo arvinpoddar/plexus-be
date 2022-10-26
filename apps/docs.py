@@ -36,14 +36,13 @@ def get_document(team_id, doc_id, current_user: dict = Depends(get_current_user_
     
     return document.to_dict()
 
-class Document(BaseModel):
+class DocumentRequest(BaseModel):
     name: str
     status: str
     content: str
-    id : str
 
 @document_router.post("/")
-def create_document(team_id, doc: Document, current_user: dict = Depends(get_current_user_data)):
+def create_document(team_id, doc: DocumentRequest, current_user: dict = Depends(get_current_user_data)):
     team_doc = db.collection(u'teams').document(team_id)
     team = team_doc.get()
     verify_user(team, current_user["id"], Roles.MEMBER)
@@ -62,7 +61,7 @@ def create_document(team_id, doc: Document, current_user: dict = Depends(get_cur
     return doc
 
 @document_router.put("/{doc_id}")
-def update_document(team_id, doc: Document, doc_id, current_user: dict = Depends(get_current_user_data)):
+def update_document(team_id, doc: DocumentRequest, doc_id, current_user: dict = Depends(get_current_user_data)):
     team_doc = db.collection(u'teams').document(team_id)
     team = team_doc.get()
     verify_user(team, current_user["id"], Roles.ADMIN)
