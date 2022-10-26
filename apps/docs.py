@@ -34,7 +34,11 @@ def get_document(team_id, doc_id, current_user: dict = Depends(get_current_user_
         raise HTTPException(
             status_code=404, detail=f"Document {doc_id} doesn't exist")
     
-    return document.to_dict()
+    ret = document.to_dict()
+    user_doc = db.collection(u'users').document(ret['author']).get()
+    ret['author'] = user_doc.to_dict()
+
+    return ret
 
 class DocumentRequest(BaseModel):
     name: str
