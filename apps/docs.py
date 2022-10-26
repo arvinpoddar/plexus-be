@@ -4,6 +4,7 @@ from apps.jwt import get_current_user_data
 from apps.firebase import db
 from vars.roles import Roles
 from vars.helpers import verify_user
+from firebase_admin import firestore
 
 document_router = APIRouter(prefix="/{team_id}/documents")
 
@@ -65,6 +66,8 @@ def create_document(team_id, doc: DocumentRequest, current_user: dict = Depends(
         u'status': doc.status,
         u'name': doc.name,
         u'id': new_doc.id,
+        u'creation_time': firestore.SERVER_TIMESTAMP,
+        u'last_updated': firestore.SERVER_TIMESTAMP
     })
     doc.id = new_doc.id
     return doc
@@ -84,6 +87,7 @@ def update_document(team_id, doc: DocumentRequest, doc_id, current_user: dict = 
         u'content': doc.content,
         u'status': doc.status,
         u'name': doc.name,
+        u'last_updated': firestore.SERVER_TIMESTAMP
     })
 
     return doc
