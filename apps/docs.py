@@ -70,7 +70,12 @@ def create_document(team_id, doc: DocumentRequest, current_user: dict = Depends(
         u'last_updated': firestore.SERVER_TIMESTAMP
     })
     doc.id = new_doc.id
-    return doc
+
+    ret = docs_ref.document(doc.id).get().to_dict()
+    user_doc = db.collection(u'users').document(ret['author']).get()
+    ret['author'] = user_doc.to_dict()
+
+    return ret
 
 @document_router.put("/{doc_id}")
 def update_document(team_id, doc: DocumentRequest, doc_id, current_user: dict = Depends(get_current_user_data)):
@@ -90,7 +95,11 @@ def update_document(team_id, doc: DocumentRequest, doc_id, current_user: dict = 
         u'last_updated': firestore.SERVER_TIMESTAMP
     })
 
-    return doc
+    ret = doc_ref.get().to_dict()
+    user_doc = db.collection(u'users').document(ret['author']).get()
+    ret['author'] = user_doc.to_dict()
+
+    return ret
 
 @document_router.delete("/{doc_id}")
 def delete_document(team_id, doc_id, current_user: dict = Depends(get_current_user_data)):
