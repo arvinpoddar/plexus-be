@@ -7,6 +7,10 @@ from vars.helpers import verify_user
 
 edge_router = APIRouter(prefix="/{team_id}/edges")
 
+def create_edge_id(x: str, y: str):
+    edges = sorted([x, y])
+    return "-".join(edges)
+
 @edge_router.get("/")
 def get_edges(team_id, current_user: dict = Depends(get_current_user_data)):
     team_doc = db.collection(u'teams').document(team_id)
@@ -21,8 +25,8 @@ def get_edges(team_id, current_user: dict = Depends(get_current_user_data)):
 
 class Edge(BaseModel):
     description: str
-    frm: str
-    to: str
+    x: str
+    y: str
     id: str
 
 @edge_router.post("/")
@@ -33,10 +37,10 @@ def create_edge(team_id, edge: Edge, current_user: dict = Depends(get_current_us
 
 
     docs_ref = db.collection('teams').document(team_id).collection('edges')
-    new_id = edge.frm + edge.to if edge.frm.lower() < edge.to.lower() else edge.to + edge.frm
+    new_id = create_edge_id(edge.x, edge.y)
     
     doc_ids = [doc.id for doc in db.collection('teams').document(team_id).collection('documents').select('').get()]
-    if not (edge.frm in doc_ids and edge.to in doc_ids):
+    if not (edge.x in doc_ids and edge.y in doc_ids):
         raise HTTPException(
             status_code=404, detail="Documents don't exist"
         ) 
@@ -49,8 +53,8 @@ def create_edge(team_id, edge: Edge, current_user: dict = Depends(get_current_us
     new_doc = docs_ref.document(new_id)
     new_doc.set({
         u'description': edge.description,
-        u'from': edge.frm,
-        u'to': edge.to,
+        u'x': edge.x,
+        u'y': edge.y,
         u'id': new_id,
     })
     edge.id = new_id
