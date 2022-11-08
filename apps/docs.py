@@ -101,7 +101,6 @@ def update_document(team_id, doc: DocumentRequest, doc_id, current_user: dict = 
 
     return ret
 
-# TODO： Delete EDGES related to doc
 @document_router.delete("/{doc_id}")
 def delete_document(team_id, doc_id, current_user: dict = Depends(get_current_user_data)):
     team_doc = db.collection(u'teams').document(team_id)
@@ -120,5 +119,11 @@ def delete_document(team_id, doc_id, current_user: dict = Depends(get_current_us
         verify_user(team, current_user['id'], Roles.ADMIN)
 
     doc_ref.delete()
+
+    edge_col = db.collection('teams').document(team_id).collection('edges')
+    for edge in edge_col.get():
+        d = edge.to_dict()
+        if doc_id in [d['x'], d['y']]:
+            edge_col.document(d['id']).delete()
 
     return f"{doc_dict['name']} deleted"
