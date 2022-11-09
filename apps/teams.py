@@ -60,7 +60,6 @@ from apps.edges import edge_router
 from vars.roles import Roles
 from vars.status import Status
 from vars.helpers import verify_user
-from vars.similarity import find_similarity
 
 
 team_api = FastAPI()
@@ -99,16 +98,6 @@ def get_team(team_id, current_user: dict = Depends(get_current_user_data)):
 
     return team_data
 
-
-@team_api.get("/{team_id}/{doc_id}")
-def get_doc_similarities(team_id, doc_id, current_user: dict = Depends(get_current_user_data)):
-    team_doc = db.collection(u'teams').document(team_id)
-    team = team_doc.get()
-
-    verify_user(team, current_user["id"], Roles.MEMBER)
-    similarities = find_similarity(doc_id, team_id)
-
-    return similarities
 # Delete a team
 
 

@@ -5,6 +5,7 @@ from apps.firebase import db
 from vars.roles import Roles
 from vars.helpers import verify_user
 from firebase_admin import firestore
+from vars.similarity import find_similarity
 
 document_router = APIRouter(prefix="/{team_id}/documents")
 
@@ -44,6 +45,16 @@ def get_document(team_id, doc_id, current_user: dict = Depends(get_current_user_
     ret['author'] = user_doc.to_dict()
 
     return ret
+
+@document_router.get("/{doc_id}/suggestions")
+def get_doc_similarities(team_id, doc_id, current_user: dict = Depends(get_current_user_data)):
+    team_doc = db.collection(u'teams').document(team_id)
+    team = team_doc.get()
+
+    verify_user(team, current_user["id"], Roles.MEMBER)
+    similarities = find_similarity(doc_id, team_id)
+
+    return similarities
 
 class DocumentRequest(BaseModel):
     id: str
