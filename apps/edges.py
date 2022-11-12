@@ -3,13 +3,9 @@ from pydantic import BaseModel
 from apps.jwt import get_current_user_data
 from apps.firebase import db
 from vars.roles import Roles
-from vars.helpers import verify_user
+from vars.helpers import verify_user, create_edge_id
 
 edge_router = APIRouter(prefix="/{team_id}/edges")
-
-def create_edge_id(x: str, y: str):
-    edges = sorted([x, y])
-    return "-".join(edges)
 
 @edge_router.get("/")
 def get_edges(team_id, current_user: dict = Depends(get_current_user_data)):

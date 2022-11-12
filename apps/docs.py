@@ -3,7 +3,7 @@ from pydantic import BaseModel
 from apps.jwt import get_current_user_data
 from apps.firebase import db
 from vars.roles import Roles
-from vars.helpers import verify_user
+from vars.helpers import verify_user, create_edge_id
 from firebase_admin import firestore
 from vars.similarity import find_similarity
 
@@ -54,7 +54,20 @@ def get_doc_similarities(team_id, doc_id, current_user: dict = Depends(get_curre
     verify_user(team, current_user["id"], Roles.MEMBER)
     similarities = find_similarity(doc_id, team_id)
 
-    return similarities
+    res = []
+
+    for doc in similarities:
+        create_edge_id(doc_id, doc[0])
+        temp = {
+            "id" : create_edge_id(doc_id, doc[0]),
+            "x" : get_document(team_id, doc_id, current_user),
+            "y" : get_document(team_id, doc[0], current_user),
+            "description" : "Created from suggestions",
+            "similarity" : doc[1],
+        }
+        res.append(temp)
+
+    return res
 
 class DocumentRequest(BaseModel):
     id: str

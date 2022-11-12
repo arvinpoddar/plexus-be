@@ -12,3 +12,7 @@ def verify_user(team, uid, req_role):
     if not user_role or Roles[user_role.upper()].value < req_role.value:
         raise HTTPException(
             status_code=403, detail=f"{uid} has no permission for this team")
+
+def create_edge_id(x: str, y: str):
+    edges = sorted([x, y])
+    return "-".join(edges)
