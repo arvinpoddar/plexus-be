@@ -54,18 +54,28 @@ def get_doc_similarities(team_id, doc_id, current_user: dict = Depends(get_curre
     verify_user(team, current_user["id"], Roles.MEMBER)
     similarities = find_similarity(doc_id, team_id)
 
+    edge_col = db.collection('teams').document(team_id).collection('edges')
+    edges = [edge.to_dict()["id"] for edge in edge_col.get()]
+
     res = []
 
     for doc in similarities:
-        create_edge_id(doc_id, doc[0])
+        
+        new_edge = create_edge_id(doc_id, doc[0]),
+        if new_edge in edges or doc_id == doc[0]:
+            continue
+
         temp = {
-            "id" : create_edge_id(doc_id, doc[0]),
+            "id" : new_edge,
             "x" : get_document(team_id, doc_id, current_user),
             "y" : get_document(team_id, doc[0], current_user),
             "description" : "Created from suggestions",
             "similarity" : doc[1],
         }
         res.append(temp)
+
+        if len(res) > 2:
+            break
 
     return res
 

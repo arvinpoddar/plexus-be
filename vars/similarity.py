@@ -34,4 +34,4 @@ def find_similarity(doc_id, team_id):
         results.append((doc2[0], sim))
 
     results.sort(key=lambda x:x[1],reverse=True)
-    return(results[1:4])
+    return(results)
