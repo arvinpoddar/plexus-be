@@ -43,7 +43,7 @@ def create_edge(team_id, edge: Edge, current_user: dict = Depends(get_current_us
 
     if new_id in [doc.id for doc in docs_ref.select('').get()]:
         raise HTTPException(
-            status_code=404, detail="Edge already exists"
+            status_code=409, detail="Edge already exists"
         )
 
     new_doc = docs_ref.document(new_id)
