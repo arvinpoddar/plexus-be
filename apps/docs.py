@@ -66,7 +66,7 @@ def get_doc_similarities(team_id, doc_id, current_user: dict = Depends(get_curre
             continue
 
         temp = {
-            "id" : new_edge,
+            "id" : new_edge[0],
             "x" : get_document(team_id, doc_id, current_user),
             "y" : get_document(team_id, doc[0], current_user),
             "description" : "Created from suggestions",
