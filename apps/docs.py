@@ -74,7 +74,7 @@ def get_doc_similarities(team_id, doc_id, current_user: dict = Depends(get_curre
         }
         res.append(temp)
 
-        if len(res) > 2:
+        if len(res) > 2 or temp["similarity"] < .3:
             break
 
     return res
